@@ -1,29 +1,49 @@
-python3 - << 'EOF'
-import re
+stages: [build, test, scan]
 
-with open('.gitlab-ci.yml') as f:
-    content = f.read()
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
 
-old = """trivy-dependency-scan:
+default:
+  image: maven:3.9-eclipse-temurin-21
+  cache:
+    paths: [.m2/repository]
+
+build-backend:
+  stage: build
+  script:
+    - cd backend && mvn -B clean compile
+
+test-backend:
+  stage: test
+  services: [postgres:15-alpine]
+  variables:
+    POSTGRES_DB: employees
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: ci-only-password
+    DB_URL: jdbc:postgresql://postgres:5432/employees
+    DB_USER: postgres
+    DB_PASSWORD: ci-only-password
+  script:
+    - cd backend && mvn -B test
+
+sonarqube-check:
+  stage: scan
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  script:
+    - cd backend
+    - mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -DskipTests -Dsonar.projectKey=employee-directory -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
+
+sonarqube-frontend-check:
+  stage: scan
+  image: sonarsource/sonar-scanner-cli
+  script:
+    - sonar-scanner -Dsonar.projectKey=employee-directory-frontend -Dsonar.sources=frontend/src -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
+
+trivy-dependency-scan:
   stage: scan
   image:
     name: aquasec/trivy
     entrypoint: [""]
   script:
-    - trivy fs --exit-code 1 --severity CRITICAL backend/"""
-
-new = """trivy-dependency-scan:
-  stage: scan
-  image:
-    name: aquasec/trivy
-    entrypoint: [""]
-  script:
-    - trivy fs --exit-code 1 --severity CRITICAL backend/"""
-
-content = content.replace(old, new)
-
-with open('.gitlab-ci.yml', 'w') as f:
-    f.write(content)
-
-print("Done")
-EOF
+    - trivy fs --exit-code 1 --severity CRITICAL backend/
