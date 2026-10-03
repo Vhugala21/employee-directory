@@ -27,18 +27,22 @@ test-backend:
     - cd backend && mvn -B test
 
 sonarqube-check:
+  tags: [local-sonar]
+  tags: [local-sonar]
   stage: scan
   variables:
     SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
   script:
     - cd backend
-    - mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -DskipTests -Dsonar.projectKey=employee-directory -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
+    - mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -DskipTests -Dsonar.projectKey=employee-directory -Dsonar.host.url=http://sonarqube:9000 -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
 
 sonarqube-frontend-check:
+  tags: [local-sonar]
+  tags: [local-sonar]
   stage: scan
   image: sonarsource/sonar-scanner-cli
   script:
-    - sonar-scanner -Dsonar.projectKey=employee-directory-frontend -Dsonar.sources=frontend/src -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
+    - sonar-scanner -Dsonar.projectKey=employee-directory-frontend -Dsonar.sources=frontend/src -Dsonar.host.url=http://sonarqube:9000 -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
 
 trivy-dependency-scan:
   stage: scan
