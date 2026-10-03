@@ -42,7 +42,8 @@ sonarqube-frontend-check:
 
 trivy-dependency-scan:
   stage: scan
-  image: aquasec/trivy
-  entrypoint: [""]
+  image:
+    name: aquasec/trivy
+    entrypoint: [""]
   script:
     - trivy fs --exit-code 1 --severity CRITICAL backend/
