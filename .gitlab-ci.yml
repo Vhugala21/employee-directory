@@ -1,0 +1,27 @@
+stages: [build, test]
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+
+default:
+  image: maven:3.9-eclipse-temurin-21
+  cache:
+    paths: [.m2/repository]
+
+build-backend:
+  stage: build
+  script:
+    - cd backend && mvn -B clean compile
+
+test-backend:
+  stage: test
+  services: [postgres:15-alpine]
+  variables:
+    POSTGRES_DB: employees
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: ci-only-password
+    DB_URL: jdbc:postgresql://postgres:5432/employees
+    DB_USER: postgres
+    DB_PASSWORD: ci-only-password
+  script:
+    - cd backend && mvn -B test
