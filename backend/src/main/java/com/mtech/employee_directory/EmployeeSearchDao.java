@@ -13,9 +13,9 @@ public class EmployeeSearchDao {
         this.jdbc = jdbc;
     }
 
-    // VULNERABLE: string concatenation, no parameter binding
+    // FIXED: parameterized query, user input is bound as a value
     public List<Map<String, Object>> searchByName(String name) {
-        String sql = "SELECT * FROM employee WHERE name LIKE '%" + name + "%'";
-        return jdbc.queryForList(sql);
+        String sql = "SELECT * FROM employee WHERE name LIKE ?";
+        return jdbc.queryForList(sql, "%" + name + "%");
     }
 }
