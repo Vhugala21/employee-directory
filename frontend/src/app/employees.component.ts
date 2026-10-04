@@ -1,9 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 interface Employee { id?: number; name: string; department: string; bio: string; }
-interface Row extends Employee { safeBio: SafeHtml; }
 
 @Component({
   selector: 'app-root',
@@ -16,7 +14,7 @@ interface Row extends Employee { safeBio: SafeHtml; }
         <h2>Add employee</h2>
         <input #n placeholder="Name">
         <input #d placeholder="Department">
-        <textarea #b placeholder="Biography (HTML allowed)"></textarea>
+        <textarea #b placeholder="Biography (plain text)"></textarea>
         <button (click)="add(n.value, d.value, b.value); n.value=''; d.value=''; b.value=''">Add</button>
       </section>
 
@@ -30,7 +28,7 @@ interface Row extends Employee { safeBio: SafeHtml; }
         <article class="card">
           <h3>{{ e.name }}</h3>
           <p class="dept">{{ e.department }}</p>
-          <div [innerHTML]="e.safeBio"></div>
+          <p>{{ e.bio }}</p>
           <button (click)="remove(e.id!)">Delete</button>
         </article>
       }
@@ -46,18 +44,13 @@ interface Row extends Employee { safeBio: SafeHtml; }
 })
 export class EmployeesComponent {
   private http = inject(HttpClient);
-  private sanitizer = inject(DomSanitizer);
   private api = 'http://localhost:8080/api/employees';
-  rows = signal<Row[]>([]);
+  rows = signal<Employee[]>([]);
 
   constructor() { this.load(); }
 
   private show(list: Employee[]) {
-    this.rows.set(list.map(e => ({
-      ...e,
-      // VULNERABLE: switches off Angular's built-in HTML sanitizer
-      safeBio: this.sanitizer.bypassSecurityTrustHtml(e.bio ?? ''),
-    })));
+    this.rows.set(list);
   }
 
   load() {
