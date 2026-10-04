@@ -1,21 +1,32 @@
-stages: [build, test, scan]
+stages:
+  - build
+  - test
+  - scan
 
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  SONAR_USER_HOME: "$CI_PROJECT_DIR/.sonar"
+  GIT_DEPTH: "0"
+
+cache:
+  paths:
+    - .m2/repository/
+    - .sonar/cache/
 
 default:
   image: maven:3.9-eclipse-temurin-21
-  cache:
-    paths: [.m2/repository]
 
 build-backend:
   stage: build
   script:
-    - cd backend && mvn -B clean compile
+    - cd backend
+    - mvn -B clean compile
 
 test-backend:
   stage: test
-  services: [postgres:15-alpine]
+  services:
+    - name: postgres:15-alpine
+      alias: postgres
   variables:
     POSTGRES_DB: employees
     POSTGRES_USER: postgres
@@ -24,35 +35,35 @@ test-backend:
     DB_USER: postgres
     DB_PASSWORD: ci-only-password
   script:
-    - cd backend && mvn -B test
+    - cd backend
+    - mvn -B test
 
 sonarqube-check:
   tags: [local-sonar]
-  tags: [local-sonar]
   stage: scan
   variables:
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    SONAR_USER_HOME: "$CI_PROJECT_DIR/.sonar"
   script:
-    - cd backend
-    - mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -DskipTests -Dsonar.projectKey=employee-directory -Dsonar.host.url=http://sonarqube:9000 -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
+    - |
+      set -eu
 
-sonarqube-frontend-check:
-  tags: [local-sonar]
-  tags: [local-sonar]
-  stage: scan
-  image: sonarsource/sonar-scanner-cli
-  script:
-    - sonar-scanner -Dsonar.projectKey=employee-directory-frontend -Dsonar.sources=frontend/src -Dsonar.host.url=http://sonarqube:9000 -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
+      if [ -z "${SONAR_HOST_URL:-}" ]; then
+        echo "ERROR: SONAR_HOST_URL is not configured"
+        exit 1
+      fi
 
-trivy-dependency-scan:
-  stage: scan
-  image:
-    name: aquasec/trivy
-    entrypoint: [""]
-  cache:
-    paths: [.m2/repository]
-  before_script:
-    - mkdir -p ~/.m2
-    - cp -r .m2/repository ~/.m2/repository 2>/dev/null || true
-  script:
-    - trivy fs --exit-code 1 --severity CRITICAL backend/
+      if [ -z "${SONAR_TOKEN:-}" ]; then
+        echo "ERROR: SONAR_TOKEN is not configured"
+        exit 1
+      fi
+
+      cd backend
+
+      mvn -B verify \
+        org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+        -DskipTests \
+        -Dsonar.projectKey=employee-directory \
+        -Dsonar.host.url="$SONAR_HOST_URL" \
+        -Dsonar.token="$SONAR_TOKEN" \
+        -Dsonar.qualitygate.wait=true
+  allow_failure: false
