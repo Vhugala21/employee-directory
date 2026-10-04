@@ -79,4 +79,3 @@ trivy-dependency-scan:
     - cp -r .m2/repository ~/.m2/repository 2>/dev/null || true
   script:
     - trivy fs --exit-code 1 --severity CRITICAL backend/
-  allow_failure: true
